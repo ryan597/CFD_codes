@@ -1,62 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def euler_vorticity():
-
-    # Grid specifications
-    Nx, Ny = 128, 128
-    dt, tfinal = 0.01, 1.0
-    n_timesteps = int(np.floor(tfinal/dt))
-    print("~~ Euler Vorticity Solver ~~ \n")
-    print(f"##### \nParameters: \nGrid points = {Nx}x{Ny}")
-    print(f"final time = {tfinal}s")
-    # Grid spacing
-    dx = 2.*np.pi/Nx
-    dy = 2.*np.pi/Ny
-
-    # Discretized grid
-    xx = np.arange(0, Nx)*dx
-    yy = np.arange(0, Ny)*dy
-    print("Setting intial conditions... \n")
-    w, g  = initial_conditions(xx, yy)
-    w_hat = np.fft.fftshift(np.fft.fft2(w))
-    g_hat = np.fft.fftshift(np.fft.fft2(g))
-
-    # Matrices of wavesnumbers
-    kx = np.ones((1, Ny)).T * (np.arange(-Nx/2, Nx/2))
-    ky = np.reshape(np.arange(-Ny/2, Ny/2), (1, Ny)).T * np.ones((1, Nx))
-
-    k2 = kx**2+ky**2
-    k2[int(Nx/2),int(Nx/2)]=1
-
-    dealias = (np.abs(kx) < (2.0/3.0)*(Nx/2.0)) * (np.abs(ky)<(2.0/3.0)*(Ny/2.0))
-
-    print("Entering time loop... \n")
-    # Update the vorticity and stretching terms in each timestep
-    for iteration_time in range(0, n_timesteps):
-        if np.mod(iteration_time, 1)==0:
-            seconds = np.round(iteration_time*dt,4)
-            print(f"Time: {seconds}s")
-            plt.pcolormesh(yy, xx, w.T, cmap="hot")
-            
-            if iteration_time==0:
-                plt.colorbar()
-            plt.title("2D Euler - Vorticity")
-            plt.pause(1e-8)
-            # Implement numerical consistancy checks...
-
-        u, v = update_velocities(g_hat, w_hat, kx, ky, k2)
-        g, w = vorticity_rk4(g, w, u, v, dt, dx, dy, kx, ky)
-        # dealias to remove
-        w_hat = np.fft.fftshift(np.fft.fft2(w))*dealias
-        g_hat = np.fft.fftshift(np.fft.fft2(g))*dealias
-
-    print("Simulation finished. \n Showing final plot... \n")
-    plt.pcolormesh(yy, xx, w, cmap="hot")
-    plt.title("2D Euler - Vorticity")
-    plt.colorbar()
-    plt.show()
-
 def update_vorticity(g, w, u, v, dt, dx, dy, kx, ky):
     # Add the +g and +w for forward euler, then call this func instead of 
     # vorticity_rk4 for faster computation
@@ -107,4 +51,77 @@ def initial_conditions(xx, yy):
     g0 = np.sin(X)*np.sin(Y) - np.cos(Y)
     return w0, g0
 
-euler_vorticity()
+def blowup_test(g):
+    # infinity norm
+    norm_g = np.max(np.sum(np.abs(g), axis=1))
+    if norm_g >= 2**32 -1:
+        blowup = True
+    else:
+        blowup = False
+    return blowup
+
+if __name__=="__main__":
+
+    # Grid specifications
+    Nx, Ny = 128, 128 
+    dt, tfinal = 0.01, 1.5
+    n_timesteps = int(np.floor(tfinal/dt))
+    print("~~ Euler Vorticity Solver ~~ \n")
+    print(f"##### \nParameters: \nGrid points = {Nx}x{Ny}")
+    print(f"final time = {tfinal}s")
+    # Grid spacing
+    dx = 2.*np.pi/Nx
+    dy = 2.*np.pi/Ny
+
+    # Discretized grid
+    xx = np.arange(0, Nx)*dx
+    yy = np.arange(0, Ny)*dy
+    print("Setting intial conditions... \n")
+    w, g  = initial_conditions(xx, yy)
+    w_hat = np.fft.fftshift(np.fft.fft2(w))
+    g_hat = np.fft.fftshift(np.fft.fft2(g))
+
+    # Matrices of wavesnumbers
+    kx = np.ones((1, Ny)).T * (np.arange(-Nx/2, Nx/2))
+    ky = np.reshape(np.arange(-Ny/2, Ny/2), (1, Ny)).T * np.ones((1, Nx))
+
+    k2 = kx**2+ky**2
+    k2[int(Nx/2),int(Nx/2)]=1
+
+    dealias = (np.abs(kx) < (2.0/3.0)*(Nx/2.0)) * (np.abs(ky)<(2.0/3.0)*(Ny/2.0))
+
+    print("Entering time loop... \n")
+    # Update the vorticity and stretching terms in each timestep
+    for iteration_time in range(0, n_timesteps):
+        if np.mod(iteration_time, 1)==0:
+            seconds = np.round(iteration_time*dt,4)
+            print(f"Time: {seconds}s")
+            plt.pcolormesh(yy, xx, w.T, cmap="hot")
+            plt.colorbar()
+            plt.clim(vmin=-2, vmax=2)
+            plt.title("2D Euler - Vorticity")
+            plt.pause(1e-8)
+            plt.clf()
+            # Implement numerical consistancy checks...
+
+        u, v = update_velocities(g_hat, w_hat, kx, ky, k2)
+        g, w = vorticity_rk4(g, w, u, v, dt, dx, dy, kx, ky)
+        blowup = blowup_test(g)
+        if blowup:
+            print("Solution has blownup. \n")
+            print("Exiting loop.")
+            plt.pcolormesh(yy, xx, w.T, cmap='hot')
+            plt.title("2D Euler - Vorticity")
+            plt.colorbar()
+            plt.show()
+            break
+        # dealias to remove
+        w_hat = np.fft.fftshift(np.fft.fft2(w))*dealias
+        g_hat = np.fft.fftshift(np.fft.fft2(g))*dealias
+
+    print("Simulation finished. \n Showing final plot... \n")
+    plt.pcolormesh(yy, xx, w, cmap="hot")
+    plt.title("2D Euler - Vorticity")
+    plt.colorbar()
+    plt.clim(vmin=-2, vmax=2)
+    plt.show()
