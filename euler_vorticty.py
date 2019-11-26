@@ -1,18 +1,18 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def update_vorticity(g, w, u, v, dt, dx, dy, kx, ky):
+def update_vorticity(g, w, lam, u, v, dt, dx, dy, kx, ky):
     # Add the +g and +w for forward euler, then call this func instead of 
     # vorticity_rk4 for faster computation
-    gnew = dt*(2*g2_avg(g, dx, dy)- g**2 - convect(g, u, v, kx, ky)) #+g
+    gnew = dt*((2+lam)*g2_avg(g, dx, dy)- (1+lam)*g**2 - convect(g, u, v, kx, ky)) #+g
     wnew = dt*(g*w - convect(w, u, v, kx, ky)) #+w
     return gnew, wnew
 
-def vorticity_rk4(g, w, u, v, dt, dx, dy, kx, ky):
-    kg1, kw1 = update_vorticity(g,w,u,v,dt,dx,dy,kx,ky)
-    kg2, kw2 = update_vorticity(g+kg1/2,w+kw1/2,u,v,dt,dx,dy,kx,ky)
-    kg3, kw3 = update_vorticity(g+kg2/2,w+kw2/2,u,v,dt,dx,dy,kx,ky)
-    kg4, kw4 = update_vorticity(g+kg3,w+kw3,u,v,dt,dx,dy,kx,ky)
+def vorticity_rk4(g, w, lam, u, v, dt, dx, dy, kx, ky):
+    kg1, kw1 = update_vorticity(g,w, lam, u,v,dt,dx,dy,kx,ky)
+    kg2, kw2 = update_vorticity(g+kg1/2,w+kw1/2, lam, u,v,dt,dx,dy,kx,ky)
+    kg3, kw3 = update_vorticity(g+kg2/2,w+kw2/2, lam, u,v,dt,dx,dy,kx,ky)
+    kg4, kw4 = update_vorticity(g+kg3,w+kw3, lam, u,v,dt,dx,dy,kx,ky)
 
     g_new = g + 1/6*(kg1+2.*kg2+2.*kg3+kg4)    
     w_new = w + 1/6*(kw1+2*kw2+2*kw3+kw4)
@@ -49,6 +49,9 @@ def initial_conditions(xx, yy):
     X, Y = np.meshgrid(xx, yy)
     w0 = -np.sin(X) - np.cos(X)*np.cos(Y)
     g0 = np.sin(X)*np.sin(Y) - np.cos(Y)
+    #w0 = np.sin(X)*np.sin(Y)
+    #g0 = np.sin(X)*np.sin(Y)
+
     return w0, g0
 
 def blowup_test(g):
@@ -60,11 +63,12 @@ def blowup_test(g):
         blowup = False
     return blowup
 
-if __name__=="__main__":
+def euler_solve(N=256, dt=0.001, tfinal=2, lam=-3.0/2):
 
     # Grid specifications
-    Nx, Ny = 128, 128 
-    dt, tfinal = 0.01, 1.5
+    Nx, Ny = N, N
+    #dt, tfinal = 0.001, 2
+    #lam = -3.0/2
     n_timesteps = int(np.floor(tfinal/dt))
     print("~~ Euler Vorticity Solver ~~ \n")
     print(f"##### \nParameters: \nGrid points = {Nx}x{Ny}")
@@ -93,7 +97,7 @@ if __name__=="__main__":
     print("Entering time loop... \n")
     # Update the vorticity and stretching terms in each timestep
     for iteration_time in range(0, n_timesteps):
-        if np.mod(iteration_time, 1)==0:
+        if np.mod(iteration_time, 100)==0:
             seconds = np.round(iteration_time*dt,4)
             print(f"Time: {seconds}s")
             plt.pcolormesh(yy, xx, w.T, cmap="hot")
@@ -105,23 +109,38 @@ if __name__=="__main__":
             # Implement numerical consistancy checks...
 
         u, v = update_velocities(g_hat, w_hat, kx, ky, k2)
-        g, w = vorticity_rk4(g, w, u, v, dt, dx, dy, kx, ky)
+        g, w = vorticity_rk4(g, w, lam, u, v, dt, dx, dy, kx, ky)
         blowup = blowup_test(g)
         if blowup:
-            print("Solution has blownup. \n")
+            seconds = iteration_time*dt
+            print(f"Solution has blownup at T* = {seconds} \n")
             print("Exiting loop.")
             plt.pcolormesh(yy, xx, w.T, cmap='hot')
             plt.title("2D Euler - Vorticity")
             plt.colorbar()
             plt.show()
             break
-        # dealias to remove
+        # dealias
         w_hat = np.fft.fftshift(np.fft.fft2(w))*dealias
         g_hat = np.fft.fftshift(np.fft.fft2(g))*dealias
 
-    print("Simulation finished. \n Showing final plot... \n")
-    plt.pcolormesh(yy, xx, w, cmap="hot")
-    plt.title("2D Euler - Vorticity")
-    plt.colorbar()
-    plt.clim(vmin=-2, vmax=2)
-    plt.show()
+
+    #print("Simulation finished. \n Showing final plot... \n")
+    #plt.pcolormesh(yy, xx, w, cmap="hot")
+    #plt.title("2D Euler - Vorticity")
+    #plt.colorbar()
+    #plt.clim(vmin=-2, vmax=2)
+    #plt.show()
+
+    return g
+
+
+dt = 0.001
+tfinal = 1.0
+lam =0
+
+g_32 =  euler_solve(N=32, dt=dt, tfinal=tfinal, lam=lam)
+g_64 =  euler_solve(N=64, dt=dt, tfinal=tfinal, lam=lam)
+g_128 = euler_solve(N=128, dt=dt, tfinal=tfinal, lam=lam)
+g_256 = euler_solve(N=256, dt=dt, tfinal=tfinal, lam=lam)
+g_512 = euler_solve(N=512, dt=dt, tfinal=tfinal, lam=lam)
