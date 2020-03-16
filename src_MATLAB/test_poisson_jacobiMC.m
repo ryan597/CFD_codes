@@ -1,13 +1,12 @@
-function [xx,yy,C,C_true,res_it]=test_poisson_SOR()
+function [xx,yy,C,C_true,res_it]=test_poisson_jacobiMC(Sample_Size,omega,aspect_ratio)
 
 % Numerical method to solve 
 % [D_{xx}+D_{yy}]C+s(x,y)=0,
 % subject to periodic boundary conditions in the x-direction,
 % and Neuman boundary conditions at y=0 and y=L_y.
-  
-[Nx,Ny,~,~,A0,dx,dy,kx0,ky0]=fix_all_parameters();
-iteration_max=5000;
-w = 1.9;
+
+[Nx,Ny,~,~,A0,dx,dy,kx0,ky0]=fix_all_parametersMC(Sample_Size,omega,aspect_ratio);
+iteration_max=1000;
 
 dx2=dx*dx;
 dy2=dy*dy;
@@ -28,7 +27,6 @@ for i=1:Nx
 end
 
 % Compute analytic solution ***********************************************
-
 
 xx=0*(1:Nx);
 yy=0*(1:Ny);
@@ -52,7 +50,7 @@ res_it=0*(1:iteration_max);
 
 for iteration=1:iteration_max
     
-    C_old = C;
+    C_old=C;
     
     for i=1:Nx
         
@@ -72,9 +70,8 @@ for iteration=1:iteration_max
         for j=2:Ny-1
 
             diagonal=(2.d0/dx2)+(2.d0/dy2);
-            
-            C(i,j) = (1-w)*C(i,j) + (w*1.d0/dx2)*(C(ip1,j)+C(im1,j))/diagonal+ ...
-                ((w*1.d0/dy2)*(C(i,j+1)+C(i,j-1))+ w * s_source(i,j))/diagonal;
+            tempval=(1.d0/dx2)*(C_old(ip1,j)+C_old(im1,j))+(1.d0/dy2)*(C_old(i,j+1)+C_old(i,j-1))+s_source(i,j);
+            C(i,j)=tempval/diagonal;
             
         end
     end
@@ -84,12 +81,8 @@ for iteration=1:iteration_max
     C(:,Ny)=C(:,Ny-1);
     
     res_it(iteration)=max(max(abs(C-C_old)));
-    if(res_it(iteration)<1.d-4)
-        break
-    end
-    
 end
-
+semilogy(1:iteration_max, res_it, 'LineWidth', 3)
 end
 
 

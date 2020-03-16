@@ -1,15 +1,28 @@
-function [xx,yy,C,C_true,res_it]=test_poisson_jacobi()
+
+%iter_v = 1:600;
+%wv = 1:600;
+%for i=1:600
+%    wv(i) = 1.4 + i*0.001;
+%    [~,~,~,~,~, iter] = test_poisson_SO(wv(i));
+%    iter_v(i)= iter;
+%end
+
+%plot(wv, iter_v, 'LineWidth', 3)
+
+
+function [xx,yy,C,C_true,res_it, iter]=test_poisson_SOR()
 
 % Numerical method to solve 
 % [D_{xx}+D_{yy}]C+s(x,y)=0,
 % subject to periodic boundary conditions in the x-direction,
 % and Neuman boundary conditions at y=0 and y=L_y.
-  
+w = 1.82;  
 [Nx,Ny,~,~,A0,dx,dy,kx0,ky0]=fix_all_parameters();
-iteration_max=5000;
+iteration_max=1000;
 
 dx2=dx*dx;
 dy2=dy*dy;
+
 
 s_source=zeros(Nx,Ny);
 
@@ -51,44 +64,43 @@ res_it=0*(1:iteration_max);
 
 for iteration=1:iteration_max
     
-    C_old=C;
+    C_old = C;
     
     for i=1:Nx
         
         % Periodic BCs here.
         if(i==1)
-            im1(i)=Nx-1;
+            im1=Nx-1;
         else
-            im1(i)=i-1;
+            im1=i-1;
         end
 
         if(i==Nx)
-            ip1(i)=2;
+            ip1=2;
         else
-            ip1(i)=i+1;
+            ip1=i+1;
         end
-        
-        C(:, 2:Ny-1) = 1/(dx2)*(C_old(ip1, 2:Ny-1)+C_old(im1, 2:Ny-1)) +...
-                1/dy2 * (C_old(:, 3:Ny)+C_old(:,1:Ny-2)) + s_source(:, 2:Ny-1)
-            
-        %for j=2:Ny-1
 
-            %diagonal=(2.d0/dx2)+(2.d0/dy2);
-            %tempval=(1.d0/dx2)*(C_old(ip1,j)+C_old(im1,j))+(1.d0/dy2)*(C_old(i,j+1)+C_old(i,j-1))+s_source(i,j);
-            %C(i,j)=tempval/diagonal;
+        for j=2:Ny-1
+
+            diagonal=(2.d0/dx2)+(2.d0/dy2);
             
-        %end
+            C(i,j) = (1-w)*C(i,j) + (w*1.d0/dx2)*(C(ip1,j)+C(im1,j))/diagonal+ ...
+                ((w*1.d0/dy2)*(C(i,j+1)+C(i,j-1))+ w * s_source(i,j))/diagonal;
+            
+        end
     end
-    
         
     % Implement Dirichlet conditions at y=0,y=L_y.
     C(:,1)=C(:,2);
     C(:,Ny)=C(:,Ny-1);
     
     res_it(iteration)=max(max(abs(C-C_old)));
-    
+    if(res_it(iteration)<1.d-4)
+        iter = iteration;
+        %break
+    end
+    %contourf(C)
+semilogy(1:iteration_max, res_it, 'LineWidth', 3)
 end
-plot(1:5000, res_it)
 end
-
-
