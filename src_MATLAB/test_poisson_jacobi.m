@@ -1,12 +1,12 @@
-function [xx,yy,C,C_true,res_it]=test_poisson_jacobiMC(Sample_Size,omega,aspect_ratio)
+function [xx,yy,C,C_true,res_it]=test_poisson_jacobi()
 
 % Numerical method to solve 
 % [D_{xx}+D_{yy}]C+s(x,y)=0,
 % subject to periodic boundary conditions in the x-direction,
 % and Neuman boundary conditions at y=0 and y=L_y.
-
-[Nx,Ny,~,~,A0,dx,dy,kx0,ky0]=fix_all_parametersMC(Sample_Size,omega,aspect_ratio);
-iteration_max=1000;
+  
+[Nx,Ny,~,~,A0,dx,dy,kx0,ky0]=fix_all_parameters();
+iteration_max=5000;
 
 dx2=dx*dx;
 dy2=dy*dy;
@@ -27,6 +27,7 @@ for i=1:Nx
 end
 
 % Compute analytic solution ***********************************************
+
 
 xx=0*(1:Nx);
 yy=0*(1:Ny);
@@ -56,17 +57,20 @@ for iteration=1:iteration_max
         
         % Periodic BCs here.
         if(i==1)
-            im1=Nx-1;
+            im1(i)=Nx-1;
         else
-            im1=i-1;
+            im1(i)=i-1;
         end
 
         if(i==Nx)
-            ip1=2;
+            ip1(i)=2;
         else
-            ip1=i+1;
+            ip1(i)=i+1;
         end
-
+        
+        %C(:, 2:Ny-1) = 1/(dx2)*(C_old(ip1, 2:Ny-1)+C_old(im1, 2:Ny-1)) +...
+        %        1/dy2 * (C_old(:, 3:Ny)+C_old(:,1:Ny-2)) + s_source(:, 2:Ny-1);
+            
         for j=2:Ny-1
 
             diagonal=(2.d0/dx2)+(2.d0/dy2);
@@ -75,14 +79,16 @@ for iteration=1:iteration_max
             
         end
     end
+    
         
     % Implement Dirichlet conditions at y=0,y=L_y.
     C(:,1)=C(:,2);
     C(:,Ny)=C(:,Ny-1);
     
     res_it(iteration)=max(max(abs(C-C_old)));
+    
 end
-
+semilogy(1:5000, res_it)
 end
 
 

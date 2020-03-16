@@ -75,8 +75,9 @@ for iteration_time=1:n_timesteps
     end
     
     norm_decay(iteration_time)=sqrt(sum(sum(C-C_poiss).^2)/(Nx*Ny));
-    
 end
+figure(2);
+plot(time_vec, norm_decay)
 
 end
 

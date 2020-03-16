@@ -47,11 +47,14 @@ def convect(C, u, v, kx, ky):
 
 def initial_conditions(xx, yy):
     X, Y = np.meshgrid(xx, yy)
-    w0 = -np.sin(X) - np.cos(X)*np.cos(Y)
-    g0 = np.sin(X)*np.sin(Y) - np.cos(Y)
+    #w0 = -np.sin(X) - np.cos(X)*np.cos(Y)
+    #g0 = np.sin(X)*np.sin(Y) - np.cos(Y)
+    
     #w0 = np.sin(X)*np.sin(Y)
     #g0 = np.sin(X)*np.sin(Y)
-
+    
+    w0 = np.cos(X+np.pi/2) * (1 + 2*np.sin(Y-np.pi/2))
+    g0 = np.sin(Y-np.pi/2)
     return w0, g0
 
 def blowup_test(g):
@@ -97,10 +100,10 @@ def euler_solve(N=256, dt=0.001, tfinal=2, lam=-3.0/2):
     print("Entering time loop... \n")
     # Update the vorticity and stretching terms in each timestep
     for iteration_time in range(0, n_timesteps):
-        if np.mod(iteration_time, 100)==0:
+        if np.mod(iteration_time, 10)==0:
             seconds = np.round(iteration_time*dt,4)
             print(f"Time: {seconds}s")
-            plt.pcolormesh(yy, xx, w.T, cmap="hot")
+            plt.pcolormesh(yy, xx, g.T, cmap="hot")
             plt.colorbar()
             plt.clim(vmin=-2, vmax=2)
             plt.title("2D Euler - Vorticity")
@@ -115,7 +118,7 @@ def euler_solve(N=256, dt=0.001, tfinal=2, lam=-3.0/2):
             seconds = iteration_time*dt
             print(f"Solution has blownup at T* = {seconds} \n")
             print("Exiting loop.")
-            plt.pcolormesh(yy, xx, w.T, cmap='hot')
+            plt.pcolormesh(yy, xx, g.T, cmap='hot')
             plt.title("2D Euler - Vorticity")
             plt.colorbar()
             plt.show()
@@ -132,9 +135,11 @@ def euler_solve(N=256, dt=0.001, tfinal=2, lam=-3.0/2):
     #plt.clim(vmin=-2, vmax=2)
     #plt.show()
 
-    return g
+#    return g
 
+euler_solve(N=128, dt = 0.001, tfinal=10, lam=0)
 
+"""
 dt = 0.001
 tfinal = 1.0
 lam =0
@@ -144,3 +149,5 @@ g_64 =  euler_solve(N=64, dt=dt, tfinal=tfinal, lam=lam)
 g_128 = euler_solve(N=128, dt=dt, tfinal=tfinal, lam=lam)
 g_256 = euler_solve(N=256, dt=dt, tfinal=tfinal, lam=lam)
 g_512 = euler_solve(N=512, dt=dt, tfinal=tfinal, lam=lam)
+"""
+
